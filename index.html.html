@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fabula Ultima - Character Menu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        :root {
+            --menu-bg-start: rgba(20, 40, 120, 0.9); --menu-bg-end: rgba(10, 20, 80, 0.9);
+            --border-light: #a0a0ff; --border-dark: #3c3c7c; --font-color: #FFFFFF;
+            --cursor-color: #f0f0f0;  
+            --hp-grad-start: #32CD32; --hp-grad-end: #008000;
+            --mp-grad-start: #00A8F8; --mp-grad-end: #0078D8;
+            --ip-grad-start: #FFD700; --ip-grad-end: #B8860B;
+        }
+        body {
+            font-family: 'Press Start 2P', cursive; background: radial-gradient(circle, #001f7c, #000033);
+            color: var(--font-color); overflow-y: auto; -webkit-font-smoothing: none;
+            -moz-osx-font-smoothing: grayscale; image-rendering: pixelated; letter-spacing: 1px;
+        }
+        .window-panel {
+            background: linear-gradient(180deg, var(--menu-bg-start), var(--menu-bg-end));
+            border: 2px solid var(--border-light);
+            box-shadow: inset 0 0 0 2px var(--border-dark), 0 0 15px rgba(0,0,0,0.5);
+            padding: 1.25rem; border-radius: 8px;
+        }
+        .cursor::before {
+            content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="black" stroke-width="1.5"><path d="M4.222 10.582l6.36-4.322a1.2 1.2 0 0 1 1.63.125l2.48 2.977a.6.6 0 0 0 .914-.025l1.09-1.272a.6.6 0 0 1 .917-.02l1.648 1.923a.6.6 0 0 1-.02 1.01l-2.61 2.01a.6.6 0 0 0-.11 1.002l5.05 4.61a.6.6 0 0 1-.06 1.012l-2.67 1.73a.6.6 0 0 1-.88-.24l-3.23-6.46a.6.6 0 0 0-.96-.24l-3.34 2.17a.6.6 0 0 1-.87-.3L4.1 11.5a.6.6 0 0 1 .122-.918z"/></svg>');
+            position: absolute; left: -28px; top: 50%;
+            transform: translateY(-50%); filter: drop-shadow(2px 2px 1px black);
+        }
+        .stat-bar-container { background-color: #000; border: 2px solid var(--border-dark); border-radius: 4px; overflow: hidden; height: 22px; padding: 2px; }
+        .stat-bar { height: 100%; transition: width 0.3s ease; border-radius: 2px; }
+        .hp-bar { background: linear-gradient(90deg, var(--hp-grad-start), var(--hp-grad-end)); }
+        .mp-bar { background: linear-gradient(90deg, var(--mp-grad-start), var(--mp-grad-end)); }
+        .ip-bar { background: linear-gradient(90deg, var(--ip-grad-start), var(--ip-grad-end)); }
+        input, textarea, select {
+            background-color: rgba(0,0,20,0.8); border: 2px solid var(--border-light);
+            color: var(--font-color); padding: 0.5rem; border-radius: 4px;
+            font-family: 'Press Start 2P', cursive; width: 100%;
+        }
+        input[type="range"] { padding: 0; }
+        input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 5px var(--cursor-color); }
+        button, .button-like {
+            background-color: var(--border-dark); border: 2px solid var(--border-light); color: var(--font-color);
+            padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px; text-shadow: 1px 1px #000; transition: background-color 0.2s;
+            display: inline-block; text-align: center;
+        }
+        button:hover, .button-like:hover, button.active { background-color: var(--border-light); color: #000; }
+        button.status-active { background-color: #ffc107; color: #000; }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+        .modal { background-color: rgba(0, 0, 0, 0.7); }
+        .menu-item.active { position: relative; }
+        .toggle-switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px; border: 2px solid var(--border-light); }
+        .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #55aaff; }
+        input:checked + .slider:before { transform: translateX(26px); }
+        label { margin-bottom: 0.25rem; display: block; font-size: 0.7rem; }
+        
+        .status-icon-wrapper {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            filter: grayscale(1);
+            transition: filter 0.3s ease;
+            image-rendering: pixelated;
+        }
+        .status-icon-wrapper.active {
+            filter: grayscale(0);
+        }
+        .status-icon-wrapper svg {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4 text-xs md:text-sm">
+
+    <div id="app-container" class="w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Right Panel -->
+        <div class="lg:col-span-1 order-1 lg:order-2 window-panel flex flex-col justify-between">
+            <div>
+                <div class="text-center mb-2">
+                    <span id="character-name-display" class="text-xl truncate">Character</span>
+                </div>
+                <div id="portrait-container" class="relative mb-4 border-4 border-white bg-black h-40 w-40 mx-auto rounded-md">
+                    <img id="char-image" src="https://placehold.co/150x150/000000/FFFFFF?text=PORTRAIT" class="h-full w-full object-cover rounded-sm">
+                    <div id="status-icons-left" class="absolute left-[-30px] top-0 flex flex-col gap-y-1"></div>
+                    <div id="status-icons-right" class="absolute right-[-30px] top-0 flex flex-col gap-y-1"></div>
+                </div>
+                <div id="edit-character-info" class="hidden space-y-3 my-4">
+                    <input type="text" id="character-name-input" placeholder="Character Name">
+                    <button id="upload-portrait-btn" class="button-like w-full">Upload Portrait</button>
+                    <input type="file" id="image-upload-file" class="hidden" accept="image/*">
+                </div>
+                <div id="attributes-panel" class="grid grid-cols-4 gap-2 text-center my-4"></div>
+                <button id="status-effects-btn" class="w-full p-2 mb-4">Status Effects</button>
+            </div>
+            <div id="stats-container" class="space-y-4">
+                <div class="stat">
+                    <div class="flex justify-between items-baseline mb-1"><span class="font-bold text-lg">HP</span><div><span id="current-hp">0</span> / <span id="max-hp">0</span></div></div>
+                    <div class="stat-bar-container"><div id="hp-bar" class="stat-bar hp-bar"></div></div>
+                    <div id="hp-inputs" class="hidden mt-2 grid grid-cols-2 gap-2"><input type="number" id="current-hp-input" placeholder="Current"><input type="number" id="max-hp-input" placeholder="Max"></div>
+                </div>
+                <div class="stat">
+                    <div class="flex justify-between items-baseline mb-1"><span class="font-bold text-lg">MP</span><div><span id="current-mp">0</span> / <span id="max-mp">0</span></div></div>
+                    <div class="stat-bar-container"><div id="mp-bar" class="stat-bar mp-bar"></div></div>
+                    <div id="mp-inputs" class="hidden mt-2 grid grid-cols-2 gap-2"><input type="number" id="current-mp-input" placeholder="Current"><input type="number" id="max-mp-input" placeholder="Max"></div>
+                </div>
+                <div class="stat">
+                    <div class="flex justify-between items-baseline mb-1"><span class="font-bold text-lg">IP</span><div><span id="current-ip">0</span> / <span id="max-ip">0</span></div></div>
+                    <div class="stat-bar-container"><div id="ip-bar" class="stat-bar ip-bar"></div></div>
+                    <div id="ip-inputs" class="hidden mt-2 grid grid-cols-2 gap-2"><input type="number" id="current-ip-input" placeholder="Current"><input type="number" id="max-ip-input" placeholder="Max"></div>
+                </div>
+                <div id="quick-adjust-panel" class="pt-2">
+                    <div class="flex gap-2 items-center">
+                        <input type="number" id="adjust-value" class="w-1/3 text-center" value="10">
+                        <div class="grid grid-cols-3 gap-1 flex-grow">
+                             <button id="add-hp-btn" class="p-1 text-xs">+ HP</button>
+                             <button id="add-mp-btn" class="p-1 text-xs">+ MP</button>
+                             <button id="add-ip-btn" class="p-1 text-xs">+ IP</button>
+                             <button id="sub-hp-btn" class="p-1 text-xs">- HP</button>
+                             <button id="sub-mp-btn" class="p-1 text-xs">- MP</button>
+                             <button id="sub-ip-btn" class="p-1 text-xs">- IP</button>
+                        </div>
+                    </div>
+                </div>
+                <button id="magic-tent-btn" class="w-full p-2 mt-2">🏕️ Magic Tent</button>
+            </div>
+             <div id="data-management-panel" class="hidden mt-4 space-y-2">
+                <button id="export-data-btn" class="w-full">Export Data</button>
+                <button id="import-data-btn" class="button-like w-full">Import Data</button>
+                <input type="file" id="import-data-file" class="hidden" accept=".json">
+                <div id="volume-control-panel" class="hidden pt-2 space-y-2">
+                    <label for="volume-slider" class="text-center block">Volume</label>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.01" class="w-full">
+                    <button id="mute-btn" class="w-full">Mute</button>
+                </div>
+            </div>
+            <div class="mt-6 flex items-center justify-center space-x-3">
+                <span>Use</span><label class="toggle-switch"><input type="checkbox" id="edit-mode-toggle"><span class="slider"></span></label><span>Edit</span>
+            </div>
+        </div>
+
+        <!-- Left Panel -->
+        <div id="menu-panel" class="lg:col-span-2 order-2 lg:order-1 window-panel flex flex-col min-h-[450px]"></div>
+    </div>
+    
+    <!-- Modals -->
+    <div id="prompt-modal" class="fixed inset-0 z-50 modal items-center justify-center hidden p-4">
+        <div class="window-panel w-11/12 max-w-md relative">
+            <h2 id="prompt-modal-title" class="text-xl mb-4 text-yellow-300 text-center">Prompt</h2>
+            <input type="text" id="prompt-modal-input" placeholder="Name">
+            <div id="prompt-modal-buttons" class="text-center mt-4 space-x-2"></div>
+        </div>
+    </div>
+     <div id="confirm-modal" class="fixed inset-0 z-50 modal items-center justify-center hidden p-4">
+        <div class="window-panel w-11/12 max-w-md relative">
+            <p id="confirm-modal-text" class="text-center mb-4"></p>
+            <div class="text-center mt-4 space-x-2">
+                <button id="confirm-modal-yes-btn" class="bg-red-700 hover:bg-red-800">Yes, Delete</button>
+                <button id="confirm-modal-no-btn">No, Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div id="status-modal" class="fixed inset-0 z-50 modal items-center justify-center hidden p-4">
+        <div class="window-panel w-11/12 max-w-md relative">
+            <h2 class="text-xl mb-4 text-yellow-300 text-center">Status Effects</h2>
+            <div id="status-buttons-container" class="grid grid-cols-3 gap-2"></div>
+            <div class="text-center mt-4"><button id="close-status-modal-btn">Close</button></div>
+        </div>
+    </div>
+    <div id="detail-modal" class="fixed inset-0 z-50 modal items-center justify-center hidden">
+        <div class="window-panel w-11/12 max-w-2xl relative text-sm space-y-2">
+            <h2 id="modal-title" class="text-xl mb-2 text-yellow-300"></h2>
+            <p id="modal-description" class="mb-2"></p>
+            <div class="grid grid-cols-2 gap-x-4">
+                <div><p id="modal-cost"></p><p id="modal-target"></p><p id="modal-duration"></p></div>
+                <div><p id="modal-magic-check"></p><p id="modal-damage"></p><p id="modal-damage-type"></p></div>
+            </div>
+            <div class="text-right space-x-2 pt-2"><button id="modal-use-btn">Use</button><button id="modal-close-btn">Close</button></div>
+        </div>
+    </div>
+    <div id="edit-modal" class="fixed inset-0 z-50 modal items-center justify-center hidden overflow-y-auto p-4">
+        <div class="window-panel w-11/12 max-w-2xl relative space-y-3">
+            <h2 id="edit-modal-title" class="text-xl mb-4 text-yellow-300"></h2>
+            <input type="hidden" id="edit-item-id"><input type="hidden" id="edit-item-category-id">
+            
+            <div class="grid grid-cols-3 gap-4">
+                <div class="col-span-2"><label for="item-name">Name</label><input type="text" id="item-name" placeholder="Ability Name"></div>
+                <div><label for="item-level">Level</label><input type="number" id="item-level" placeholder="1"></div>
+            </div>
+            
+            <div><label for="item-description">Description</label><textarea id="item-description" rows="2" placeholder="Description"></textarea></div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div><label for="item-target">Target</label><input type="text" id="item-target" placeholder="e.g., Self, 1 Foe"></div>
+                <div><label for="item-duration">Duration</label><input type="text" id="item-duration" placeholder="e.g., Instant, Scene"></div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                 <div><label for="item-cost-type">Cost Type</label><select id="item-cost-type"><option value="MP">MP</option><option value="HP">HP</option><option value="PercentCurrentHP">1/3 Current HP</option><option value="None">None</option></select></div>
+                 <div><label for="item-cost-value">Cost Value</label><input type="number" id="item-cost-value" placeholder="Cost" value="0"></div>
+            </div>
+
+            <fieldset class="border-2 border-dashed border-gray-500 p-2 rounded">
+                <legend class="px-2 text-gray-400">Combat</legend>
+                 <div class="grid grid-cols-2 gap-4">
+                      <div>
+                           <label>Magic Check</label>
+                           <div class="flex items-center gap-2">
+                             <select id="item-magic-check-1"><option>DEX</option><option>INS</option><option>MIG</option><option>WLP</option></select>
+                             +
+                             <select id="item-magic-check-2"><option>DEX</option><option>INS</option><option>MIG</option><option>WLP</option></select>
+                           </div>
+                      </div>
+                      <div><label for="item-damage">Damage</label><input type="text" id="item-damage" placeholder="e.g., HR + 25"></div>
+                      <div><label for="item-damage-type">Damage Type</label><input type="text" id="item-damage-type" placeholder="e.g., Fire, Physical"></div>
+                 </div>
+            </fieldset>
+
+            <div class="flex justify-between pt-4">
+                <button id="edit-modal-delete-btn" class="bg-red-700 hover:bg-red-800">Delete</button>
+                <div class="space-x-2"><button id="edit-modal-save-btn">Save</button><button id="edit-modal-cancel-btn">Cancel</button></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let characterData;
+        let isEditMode = false;
+        let menuHistory = [];
+        let activeMenuIndex = 0;
+        let saveTimeout;
+        let confirmSynth, cancelSynth, statusSynth, volumeNode;
+
+        const menuPanel = document.getElementById('menu-panel');
+        const LOCAL_STORAGE_KEY = 'fabula-ultima-character-sheet-v9';
+
+        const DICE_ORDER = ['d6', 'd8', 'd10', 'd12', 'd20'];
+        const STATUS_EFFECTS = {
+            'Slow': { affects: ['dex'], steps: 1, sound: 'C3' },
+            'Dazed': { affects: ['ins'], steps: 1, sound: 'D#3' },
+            'Weak': { affects: ['mig'], steps: 1, sound: 'F3' },
+            'Shaken': { affects: ['wlp'], steps: 1, sound: 'G#3' },
+            'Poisoned': { affects: ['mig', 'wlp'], steps: 1, sound: 'A#3' },
+            'Enraged': { affects: ['dex', 'ins'], steps: 1, sound: 'C4' }
+        };
+        const STATUS_ORDER_LEFT = ['Enraged', 'Dazed', 'Slow'];
+        const STATUS_ORDER_RIGHT = ['Poisoned', 'Weak', 'Shaken'];
+        
+        const STATUS_ICON_SVG = {
+            'Poisoned': `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" fill="#4B0082" stroke="#2c2c54" stroke-width="1.5"/><path d="M12 7C10.3431 7 9 8.34315 9 10C9 11.6569 10.3431 13 12 13C13.6569 13 15 11.6569 15 10C15 8.34315 13.6569 7 12 7ZM10.5 10C10.5 9.17157 11.1716 8.5 12 8.5C12.8284 8.5 13.5 9.17157 13.5 10C13.5 10.8284 12.8284 11.5 12 11.5C11.1716 11.5 10.5 10.8284 10.5 10Z" fill="#90EE90"/><path d="M9.5 12.5L8 16H16L14.5 12.5H9.5Z" fill="#90EE90"/><path d="M11 16L10.5 17.5C11.5 18 12.5 18 13.5 17.5L13 16H11Z" fill="#90EE90"/><path d="M12 13.5C12.8284 13.5 13.5 14.1716 13.5 15C13.5 15.2761 13.2761 15.5 13 15.5H11C10.7239 15.5 10.5 15.2761 10.5 15C10.5 14.1716 11.1716 13.5 12 13.5Z" fill="#6B8E23"/><path d="M11 4.5C10.5 6 10 7 10 7L11.5 7.5L12 6L12.5 7.5L14 7C14 7 13.5 6 13 4.5C12.5 3 11.5 3 11 4.5Z" fill="#90EE90"/><path d="M11.5 11.5C11.7761 11.5 12 11.2761 12 11V10C12 9.72386 11.7761 9.5 11.5 9.5C11.2239 9.5 11 9.72386 11 10V11C11 11.2761 11.2239 11.5 11.5 11.5Z" fill="black"/><path d="M12.5 11.5C12.7761 11.5 13 11.2761 13 11V10C13 9.72386 12.7761 9.5 12.5 9.5C12.2239 9.5 12 9.72386 12 10V11C12 11.2761 12.2239 11.5 12.5 11.5Z" fill="black"/><path d="M10.8536 12.1464C10.6583 11.9512 10.3417 11.9512 10.1464 12.1464C9.95118 12.3417 9.95118 12.6583 10.1464 12.8536L11.1464 13.8536C11.3417 14.0488 11.6583 14.0488 11.8536 13.8536C12.0488 13.6583 12.0488 13.3417 11.8536 13.1464L10.8536 12.1464Z" fill="black"/><path d="M13.8536 12.1464C13.6583 11.9512 13.3417 11.9512 13.1464 12.1464C12.9512 12.3417 12.9512 12.6583 13.1464 12.8536L14.1464 13.8536C14.3417 14.0488 14.6583 14.0488 14.8536 13.8536C15.0488 13.6583 15.0488 13.3417 14.8536 13.1464L13.8536 12.1464Z" fill="black"/></svg>`,
+            'Enraged': `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" fill="#DC143C" stroke="#8B0000" stroke-width="1.5"/><path d="M6 9L9 8L10 6" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 9L15 8L14 6" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 14C7 14 8.5 16 12 16C15.5 16 17 14 17 14" stroke="black" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+            'Weak': `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" fill="#FFA500" stroke="#CD853F" stroke-width="1.5"/><path d="M17.5 6.5L12 12M12 12L6.5 17.5M12 12L15 9L9 15M10 10.5L10.5 10L14 13.5L13.5 14L10 10.5Z" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 9L15 6" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 18L6 15" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+            'Shaken': `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" fill="#00BFFF" stroke="#1E90FF" stroke-width="1.5"/><path d="M8 10C8 8.34315 9.34315 7 11 7H13C14.6569 7 16 8.34315 16 10V14C16 15.6569 14.6569 17 13 17H11C9.34315 17 8 15.6569 8 14V10Z" fill="white"/><path d="M10 11C10 10.4477 10.4477 10 11 10C11.5523 10 12 10.4477 12 11C12 11.5523 11.5523 12 11 12C10.4477 12 10 11.5523 10 11Z" fill="black"/><path d="M14 11C14 10.4477 14.4477 10 15 10C15.5523 10 16 10.4477 16 11C16 11.5523 15.5523 12 15 12C14.4477 12 14 11.5523 14 11Z" fill="black"/><path d="M12 15C13.1046 15 14 14.1046 14 13H10C10 14.1046 10.8954 15 12 15Z" fill="black"/><path d="M7 17L6 18L7 19" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 17L18 18L17 19" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="15" y="4" width="3" height="4" rx="1.5" fill="#FF4500"/><path d="M16.5 5.5V6.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/><path d="M16.5 7.5V8" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+            'Dazed': `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" fill="#FFD700" stroke="#B8860B" stroke-width="1.5"/><path d="M12 12C12 12 14 10 16 12C18 14 16 16 12 16C8 16 6 14 8 12C10 10 12 12 12 12Z" stroke="black" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M12 12C12 12 15 9 18 12C21 15 18 18 12 18C6 18 3 15 6 12C9 9 12 12 12 12Z" stroke="black" stroke-width="1.5" stroke-linecap="round" fill="none" transform="rotate(45 12 12)"/><path d="M12 12C12 12 16 8 20 12C24 16 20 20 12 20C4 20 0 16 4 12C8 8 12 12 12 12Z" stroke="black" stroke-width="1.5" stroke-linecap="round" fill="none" transform="rotate(-30 12 12)"/></svg>`,
+            'Slow': `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" fill="#808080" stroke="#696969" stroke-width="1.5"/><path d="M6 17H18V18H6V17Z" fill="#F5DEB3"/><path d="M12 17V15.5C14.5 15.5 16 13.5 15 11.5C14 9.5 11 9.5 9.5 11C8 12.5 9 14 11.5 14V12.5" stroke="#8B4513" stroke-width="1" fill="none" stroke-linecap="round"/><path d="M15.5 11C16.5 9 15 7 13 7C11 7 9.5 8.5 10 10" stroke="#8B4513" stroke-width="1" fill="none" stroke-linecap="round"/><path d="M16 15.5H17.5V14" stroke="#F5DEB3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 15.5H20V14" stroke="#F5DEB3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+        };
+
+        function getInitialCharacterData() {
+            return {
+                name: 'Hero', portrait: 'https://placehold.co/150x150/000000/FFFFFF?text=PORTRAIT',
+                stats: { hp: { current: 100, max: 100 }, mp: { current: 50, max: 50 }, ip: { current: 10, max: 10 } },
+                attributes: { dex: 'd6', ins: 'd6', mig: 'd6', wlp: 'd6' },
+                statuses: [],
+                menu: [
+                    { id: 'cat_' + Date.now(), name: 'Magic', type: 'submenu', items: [
+                        { id: 'item_' + Date.now(), name: 'Fire', type: 'spell', level: 1, description: 'Deals minor fire damage.', costType: 'MP', costValue: 5, target: '1 Foe', duration: "Instant", magicCheck1: 'INS', magicCheck2: 'WLP', damage: 'HR + 10', damageType: 'Fire' },
+                    ]}
+                ],
+                settings: { volume: 0.5, muted: false }
+            };
+        }
+        
+        function init() {
+            document.body.addEventListener('click', initSound, { once: true });
+            loadCharacterData();
+            buildStaticUI();
+            setupEventListeners();
+            updateUI();
+            renderCurrentMenu();
+        }
+        
+        function initSound() {
+            if (typeof Tone !== 'undefined' && !confirmSynth) {
+                volumeNode = new Tone.Volume(Tone.gainToDb(characterData.settings.volume)).toDestination();
+                
+                confirmSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "fmsquare", modulationType: 'triangle', harmonicity: 0.5 },
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 },
+                }).connect(volumeNode);
+
+                cancelSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "fmsawtooth", modulationType: 'sine', harmonicity: 0.8 },
+                    envelope: { attack: 0.02, decay: 0.3, sustain: 0, release: 0.2 },
+                }).connect(volumeNode);
+
+                statusSynth = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.1 } }).connect(volumeNode);
+
+                volumeNode.mute = characterData.settings.muted;
+                updateVolumeUI();
+            }
+        }
+
+        const playMenuConfirmSound = () => { if(confirmSynth) confirmSynth.triggerAttackRelease(['C5', 'G5'], '8n'); };
+        const playMenuBackSound = () => { if(cancelSynth) cancelSynth.triggerAttackRelease(['E4', 'A4'], '8n'); };
+        const playStatusOnSound = (statusName) => {
+            const effect = STATUS_EFFECTS[statusName];
+            if (statusSynth && effect && effect.sound) statusSynth.triggerAttackRelease(effect.sound, '16n');
+        };
+
+        function buildStaticUI() {
+            const attributesPanel = document.getElementById('attributes-panel');
+            attributesPanel.innerHTML = Object.keys(getInitialCharacterData().attributes).map(attr => `
+                <div>
+                    <div class="font-bold">${attr.toUpperCase()}</div>
+                    <select id="${attr}-select" class="text-center hidden">${DICE_ORDER.map(d => `<option value="${d}">${d}</option>`).join('')}</select>
+                    <div id="${attr}-display" class="p-1"></div>
+                </div>`
+            ).join('');
+
+            const statusButtonsContainer = document.getElementById('status-buttons-container');
+            statusButtonsContainer.innerHTML = Object.keys(STATUS_EFFECTS).map(status => 
+                `<button id="status-btn-${status}" data-status="${status}">${status}</button>`
+            ).join('');
+        }
+
+        function loadCharacterData() {
+            const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+            try {
+                characterData = savedData ? JSON.parse(savedData) : getInitialCharacterData();
+            } catch (e) {
+                characterData = getInitialCharacterData();
+            }
+            if (!characterData.settings) characterData.settings = getInitialCharacterData().settings;
+        }
+        
+        const saveCharacterData = (immediate = false) => {
+            clearTimeout(saveTimeout);
+            const performSave = () => localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(characterData));
+            if (immediate) performSave();
+            else saveTimeout = setTimeout(performSave, 500);
+        };
+
+        function updateVolumeUI() {
+            const slider = document.getElementById('volume-slider');
+            if (slider) {
+                slider.value = characterData.settings.volume;
+                const muteBtn = document.getElementById('mute-btn');
+                muteBtn.textContent = characterData.settings.muted ? 'Unmute' : 'Mute';
+                muteBtn.classList.toggle('status-active', characterData.settings.muted);
+            }
+        }
+
+        function updateUI() {
+            if (!characterData) return;
+            ['hp', 'mp', 'ip'].forEach(stat => {
+                const { current, max } = characterData.stats[stat];
+                document.getElementById(`current-${stat}`).textContent = current;
+                document.getElementById(`max-${stat}`).textContent = max;
+                document.getElementById(`${stat}-bar`).style.width = `${max > 0 ? (Math.max(0, current) / max) * 100 : 0}%`;
+                if (isEditMode) {
+                    document.getElementById(`current-${stat}-input`).value = current;
+                    document.getElementById(`max-${stat}-input`).value = max;
+                }
+            });
+            document.getElementById('character-name-display').textContent = characterData.name;
+            const charImage = document.getElementById('char-image');
+            if (charImage.src !== characterData.portrait) charImage.src = characterData.portrait;
+            charImage.onerror = () => { charImage.src = 'https://placehold.co/150x150/000000/FFFFFF?text=Error'; };
+            if (isEditMode) document.getElementById('character-name-input').value = characterData.name;
+            
+            updateAttributesAndStatusUI();
+            updateVolumeUI();
+        }
+
+        function updateAttributesAndStatusUI() {
+            const effectiveAttributes = { ...characterData.attributes };
+            characterData.statuses.forEach(statusName => {
+                const effect = STATUS_EFFECTS[statusName];
+                if (effect) effect.affects.forEach(attr => {
+                    let currentDie = effectiveAttributes[attr];
+                    for(let i=0; i<effect.steps; i++) currentDie = stepDieDown(currentDie);
+                    effectiveAttributes[attr] = currentDie;
+                });
+            });
+
+            Object.keys(characterData.attributes).forEach(attr => {
+                document.getElementById(`${attr}-select`).value = characterData.attributes[attr];
+                document.getElementById(`${attr}-display`).textContent = effectiveAttributes[attr];
+            });
+            
+            const iconsLeftContainer = document.getElementById('status-icons-left');
+            const iconsRightContainer = document.getElementById('status-icons-right');
+            iconsLeftContainer.innerHTML = '';
+            iconsRightContainer.innerHTML = '';
+
+            const activeStatuses = new Set(characterData.statuses);
+
+            [STATUS_ORDER_LEFT, STATUS_ORDER_RIGHT].forEach((order, index) => {
+                const container = index === 0 ? iconsLeftContainer : iconsRightContainer;
+                order.forEach(statusName => {
+                    const iconWrapper = document.createElement('div');
+                    iconWrapper.className = `status-icon-wrapper`;
+                    iconWrapper.title = statusName;
+                    iconWrapper.innerHTML = STATUS_ICON_SVG[statusName];
+                    iconWrapper.classList.toggle('active', activeStatuses.has(statusName));
+                    container.appendChild(iconWrapper);
+                });
+            });
+
+            Object.keys(STATUS_EFFECTS).forEach(statusName => {
+                document.getElementById(`status-btn-${statusName}`).classList.toggle('status-active', characterData.statuses.includes(statusName));
+            });
+        }
+
+        function stepDieDown(die) {
+            const index = DICE_ORDER.indexOf(die);
+            return index > 0 ? DICE_ORDER[index - 1] : die;
+        }
+        
+        function renderCurrentMenu() {
+            const currentLevel = menuHistory.length > 0 ? menuHistory[menuHistory.length - 1].items : characterData.menu;
+            renderMenu(currentLevel);
+        }
+
+        function renderMenu(items) {
+            menuPanel.innerHTML = '';
+            const list = document.createElement('ul');
+            list.className = 'space-y-2 text-lg flex-grow';
+            
+            const isSubMenu = menuHistory.length > 0;
+            const itemsToRender = isSubMenu ? [{ name: '..Back', type: 'back' }, ...items] : items;
+
+            itemsToRender.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.textContent = item.name + (item.type === 'submenu' ? '/' : '');
+                li.className = 'menu-item p-2 cursor-pointer';
+                li.dataset.index = index;
+                list.appendChild(li);
+            });
+            menuPanel.appendChild(list);
+
+            if (isEditMode) {
+                const controls = document.createElement('div');
+                controls.className = 'pt-4 border-t-2 border-dashed border-gray-600 space-y-2';
+                let currentCategory;
+                if (isSubMenu) {
+                    currentCategory = menuHistory[menuHistory.length - 1];
+                    controls.innerHTML = `<button data-action="add-subcategory">+ Add Sub-Category</button>
+                                          <button data-action="add-skill" class="ml-2">+ Add Skill/Ability</button>
+                                          <button data-action="edit-category" class="ml-2 bg-yellow-700 hover:bg-yellow-600">Edit Category</button>`;
+                } else {
+                    controls.innerHTML = `<button data-action="add-top-category">+ Add New Category</button>`;
+                }
+
+                controls.querySelector('[data-action="add-subcategory"], [data-action="add-top-category"]').onclick = () => openPromptModal('New Category', '', name => addNewItem(name, 'submenu'));
+                if (isSubMenu) {
+                    controls.querySelector('[data-action="edit-category"]').onclick = () => openCategoryEditPrompt(currentCategory);
+                    controls.querySelector('[data-action="add-skill"]').onclick = () => openEditModal(null, currentCategory.id);
+                }
+                menuPanel.appendChild(controls);
+            }
+            activeMenuIndex = 0;
+            updateActiveMenuItem();
+        }
+        
+        function openCategoryEditPrompt(category) {
+            openPromptModal(`Edit '${category.name}'`, category.name, 
+            newName => { // onSave
+                category.name = newName;
+                saveCharacterData(true);
+                renderCurrentMenu();
+            }, 
+            () => { // onDelete
+                showConfirmationModal(`Delete "${category.name}" and all contents?`, () => {
+                    const result = findItemRecursive(category.id, characterData.menu);
+                    if (result && result.parent) {
+                        result.parent.splice(result.index, 1);
+                        saveCharacterData(true);
+                        goBackMenu();
+                    }
+                });
+            });
+        }
+        
+        function addNewItem(name, type) {
+            const newItem = { id: (type === 'submenu' ? 'cat_' : 'item_') + Date.now(), name, type };
+            if (type === 'submenu') newItem.items = [];
+            const targetArray = menuHistory.length > 0 ? menuHistory[menuHistory.length - 1].items : characterData.menu;
+            targetArray.push(newItem);
+            saveCharacterData(true);
+            renderCurrentMenu();
+        }
+
+        function updateActiveMenuItem() {
+            menuPanel.querySelectorAll('.menu-item').forEach((item, index) => {
+                item.classList.toggle('active', index === activeMenuIndex);
+                item.classList.toggle('cursor', index === activeMenuIndex);
+            });
+        }
+        
+        function navigateMenu(direction) {
+            const itemCount = menuPanel.querySelectorAll('.menu-item').length;
+            if (itemCount === 0) return;
+            activeMenuIndex = (activeMenuIndex + direction + itemCount) % itemCount;
+            updateActiveMenuItem();
+        }
+
+        function selectMenuItem() {
+            const isSubMenu = menuHistory.length > 0;
+            const currentLevelItems = isSubMenu ? menuHistory[menuHistory.length - 1].items : characterData.menu;
+            const itemsToRender = isSubMenu ? [{ type: 'back' }, ...currentLevelItems] : currentLevelItems;
+            const selectedRenderedItem = itemsToRender[activeMenuIndex];
+            if (!selectedRenderedItem) return;
+
+            if (selectedRenderedItem.type === 'back') {
+                goBackMenu(); 
+                return;
+            }
+            
+            playMenuConfirmSound(); 
+            const selectedDataItem = currentLevelItems[isSubMenu ? activeMenuIndex - 1 : activeMenuIndex];
+            if (!selectedDataItem) return; 
+
+            if (selectedDataItem.type === 'submenu') {
+                menuHistory.push(selectedDataItem);
+                renderCurrentMenu();
+            } else {
+                const parentId = isEditMode && isSubMenu ? menuHistory[menuHistory.length-1].id : null;
+                isEditMode ? openEditModal(selectedDataItem, parentId) : openDetailModal(selectedDataItem);
+            }
+        }
+
+        function goBackMenu() {
+            if (menuHistory.length > 0) { 
+                playMenuBackSound();
+                menuHistory.pop(); 
+                renderCurrentMenu(); 
+            }
+        }
+        
+        function openDetailModal(item) {
+            const modal = document.getElementById('detail-modal');
+            modal.querySelector('#modal-title').textContent = `${item.name} (Lvl ${item.level || 1})`;
+            modal.querySelector('#modal-description').textContent = item.description || "No description.";
+            let costText = "Cost: None";
+            if (item.costType === 'PercentCurrentHP') costText = "Cost: 1/3 Current HP";
+            else if (item.costType && item.costType !== 'None') costText = `Cost: ${item.costValue} ${item.costType}`;
+            modal.querySelector('#modal-cost').textContent = costText;
+            modal.querySelector('#modal-target').textContent = `Target: ${item.target || 'N/A'}`;
+            modal.querySelector('#modal-duration').textContent = `Duration: ${item.duration || 'N/A'}`;
+            modal.querySelector('#modal-magic-check').textContent = `Check: ${item.magicCheck1 || 'N/A'} + ${item.magicCheck2 || 'N/A'}`;
+            modal.querySelector('#modal-damage').textContent = `Damage: ${item.damage || 'None'}`;
+            modal.querySelector('#modal-damage-type').textContent = `Type: ${item.damageType || 'N/A'}`;
+            modal.querySelector('#modal-use-btn').onclick = () => useAbility(item);
+            modal.classList.replace('hidden', 'flex');
+        }
+
+        function useAbility(item) {
+            if (item.costType === 'HP') characterData.stats.hp.current -= item.costValue;
+            else if (item.costType === 'MP') characterData.stats.mp.current -= item.costValue;
+            else if (item.costType === 'PercentCurrentHP') characterData.stats.hp.current -= Math.floor(characterData.stats.hp.current / 3);
+            updateUI();
+            saveCharacterData(true);
+            closeAllModals();
+        }
+
+        function openEditModal(item = null, categoryId) {
+            const modal = document.getElementById('edit-modal');
+            modal.querySelector('#edit-item-category-id').value = categoryId;
+            modal.querySelector('#edit-modal-title').textContent = item ? `Edit ${item.name}` : 'Add New Skill/Ability';
+            ['name', 'description', 'target', 'duration', 'damage', 'damage-type'].forEach(field => {
+                const key = field.replace('-', '');
+                modal.querySelector(`#item-${field}`).value = item?.[key] || '';
+            });
+            modal.querySelector('#item-level').value = item?.level || 1;
+            modal.querySelector('#item-cost-type').value = item?.costType || 'MP';
+            modal.querySelector('#item-cost-value').value = item?.costValue || 0;
+            modal.querySelector('#item-magic-check-1').value = item?.magicCheck1 || 'DEX';
+            modal.querySelector('#item-magic-check-2').value = item?.magicCheck2 || 'DEX';
+            modal.querySelector('#edit-item-id').value = item ? item.id : '';
+            modal.querySelector('#edit-modal-delete-btn').style.display = item ? 'inline-block' : 'none';
+            toggleCostValueInput();
+            modal.classList.replace('hidden', 'flex');
+            modal.querySelector('#item-name').focus();
+        }
+
+        function toggleCostValueInput() {
+            document.getElementById('item-cost-value').disabled = ['PercentCurrentHP', 'None'].includes(document.getElementById('item-cost-type').value);
+        }
+
+        function findItemRecursive(itemId, items) {
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.id === itemId) return { item: item, parent: items, index: i };
+                if (item.type === 'submenu' && item.items) {
+                    const found = findItemRecursive(itemId, item.items);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        function saveEditedItem() {
+            const id = document.getElementById('edit-item-id').value;
+            const categoryId = document.getElementById('edit-item-category-id').value;
+            const newItemData = {
+                id: id || `item_${Date.now()}`, type: 'spell',
+                name: document.getElementById('item-name').value || "Unnamed",
+                level: parseInt(document.getElementById('item-level').value) || 1,
+                description: document.getElementById('item-description').value,
+                target: document.getElementById('item-target').value,
+                duration: document.getElementById('item-duration').value,
+                costType: document.getElementById('item-cost-type').value,
+                costValue: parseInt(document.getElementById('item-cost-value').value) || 0,
+                magicCheck1: document.getElementById('item-magic-check-1').value,
+                magicCheck2: document.getElementById('item-magic-check-2').value,
+                damage: document.getElementById('item-damage').value,
+                damageType: document.getElementById('item-damage-type').value,
+            };
+            const parentResult = findItemRecursive(categoryId, characterData.menu);
+            if (parentResult?.item.type === 'submenu') {
+                const itemIndex = parentResult.item.items.findIndex(i => i.id === newItemData.id);
+                if (itemIndex > -1) parentResult.item.items[itemIndex] = newItemData;
+                else parentResult.item.items.push(newItemData);
+                saveCharacterData(true); 
+                renderCurrentMenu();
+            }
+            closeAllModals();
+        }
+
+        function deleteEditedItem() {
+            const id = document.getElementById('edit-item-id').value;
+            const categoryId = document.getElementById('edit-item-category-id').value;
+            showConfirmationModal('Delete this item?', () => {
+                const parentResult = findItemRecursive(categoryId, characterData.menu);
+                if (parentResult?.item.type === 'submenu') {
+                    parentResult.item.items = parentResult.item.items.filter(i => i.id !== id);
+                    saveCharacterData(true); 
+                    renderCurrentMenu();
+                }
+                closeAllModals();
+            });
+        }
+        
+        function closeAllModals() {
+            document.querySelectorAll('.modal').forEach(m => m.classList.replace('flex', 'hidden'));
+        }
+        
+        function openPromptModal(title, initialValue, onSave, onDelete) {
+            const modal = document.getElementById('prompt-modal');
+            modal.querySelector('#prompt-modal-title').textContent = title;
+            const input = modal.querySelector('#prompt-modal-input');
+            input.value = initialValue;
+            const buttons = modal.querySelector('#prompt-modal-buttons');
+            buttons.innerHTML = '';
+            
+            if (onDelete) {
+                 const deleteBtn = document.createElement('button');
+                 deleteBtn.textContent = 'Delete';
+                 deleteBtn.className = 'bg-red-700 hover:bg-red-800';
+                 deleteBtn.onclick = onDelete;
+                 buttons.appendChild(deleteBtn);
+            }
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save';
+            saveBtn.onclick = () => { if (input.value.trim()) onSave(input.value.trim()); closeAllModals(); };
+            buttons.appendChild(saveBtn);
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.onclick = () => { closeAllModals(); playMenuBackSound(); };
+            buttons.appendChild(cancelBtn);
+            modal.classList.replace('hidden', 'flex');
+            input.focus();
+        }
+        
+        function showConfirmationModal(message, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            modal.querySelector('#confirm-modal-text').textContent = message;
+            modal.querySelector('#confirm-modal-yes-btn').onclick = () => { onConfirm(); closeAllModals(); playMenuConfirmSound(); };
+            modal.classList.replace('hidden', 'flex');
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(characterData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: "application/json"});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.download = `${(characterData.name || 'character').replace(/[^a-z0-9]/gi, '_').toLowerCase()}_fabula_ultima.json`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (importedData.stats && importedData.menu) {
+                        characterData = importedData;
+                        saveCharacterData(true);
+                        menuHistory = [];
+                        updateUI();
+                        renderCurrentMenu();
+                    } else showConfirmationModal("Invalid character file.", () => {});
+                } catch (error) { showConfirmationModal("Failed to import file.", () => {}); }
+            };
+            reader.readAsText(file);
+        }
+
+        function handleStatAdjust(stat, operation) {
+            const value = parseInt(document.getElementById('adjust-value').value) || 0;
+            const statObj = characterData.stats[stat];
+            statObj.current = operation === 'add' ? Math.min(statObj.max, statObj.current + value) : Math.max(0, statObj.current - value);
+            updateUI();
+            saveCharacterData(true);
+        }
+
+        function toggleStatus(statusName) {
+            const index = characterData.statuses.indexOf(statusName);
+            if (index > -1) characterData.statuses.splice(index, 1);
+            else { characterData.statuses.push(statusName); playStatusOnSound(statusName); }
+            updateUI();
+            saveCharacterData(true);
+        }
+
+        function useMagicTent() {
+            characterData.stats.hp.current = characterData.stats.hp.max;
+            characterData.stats.mp.current = characterData.stats.mp.max;
+            characterData.statuses = [];
+            playMenuConfirmSound();
+            updateUI();
+            saveCharacterData(true);
+        }
+
+        function setupEventListeners() {
+            window.addEventListener('keydown', e => {
+                if (typeof Tone !== 'undefined' && Tone.context.state !== 'running') Tone.start();
+                const isAnyModalOpen = document.querySelector('.modal.flex');
+                if (e.key === 'Escape') { isAnyModalOpen ? (closeAllModals(), playMenuBackSound()) : goBackMenu(); }
+                if (isAnyModalOpen || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+                
+                const navKeys = {'ArrowUp': () => navigateMenu(-1), 'ArrowDown': () => navigateMenu(1), 'Enter': selectMenuItem, ' ': selectMenuItem, 'Backspace': goBackMenu};
+                if (navKeys[e.key]) { e.preventDefault(); navKeys[e.key](); }
+            });
+
+            menuPanel.addEventListener('click', e => {
+                const li = e.target.closest('.menu-item');
+                if (li) { activeMenuIndex = parseInt(li.dataset.index); selectMenuItem(); }
+            });
+
+            document.getElementById('magic-tent-btn').addEventListener('click', useMagicTent);
+            document.getElementById('modal-close-btn').addEventListener('click', () => { closeAllModals(); playMenuBackSound(); });
+            document.getElementById('edit-modal-cancel-btn').addEventListener('click', () => { closeAllModals(); playMenuBackSound(); });
+            document.getElementById('edit-modal-save-btn').addEventListener('click', saveEditedItem);
+            document.getElementById('edit-modal-delete-btn').addEventListener('click', deleteEditedItem);
+            document.getElementById('item-cost-type').addEventListener('change', toggleCostValueInput);
+            
+            document.getElementById('status-effects-btn').addEventListener('click', () => document.getElementById('status-modal').classList.replace('hidden', 'flex'));
+            document.getElementById('close-status-modal-btn').addEventListener('click', () => { closeAllModals(); playMenuBackSound(); });
+            document.getElementById('status-buttons-container').addEventListener('click', e => { if(e.target.tagName === 'BUTTON') toggleStatus(e.target.dataset.status); });
+            document.getElementById('confirm-modal-no-btn').addEventListener('click', () => { closeAllModals(); playMenuBackSound(); });
+
+            document.getElementById('edit-mode-toggle').addEventListener('change', e => {
+                isEditMode = e.target.checked;
+                const hidden = !isEditMode;
+                document.getElementById('edit-character-info').classList.toggle('hidden', hidden);
+                document.getElementById('data-management-panel').classList.toggle('hidden', hidden);
+                document.getElementById('volume-control-panel').classList.toggle('hidden', hidden);
+                document.getElementById('magic-tent-btn').classList.toggle('hidden', !hidden);
+                document.getElementById('quick-adjust-panel').classList.toggle('hidden', !hidden);
+                document.getElementById('status-effects-btn').classList.toggle('hidden', !hidden);
+
+                Object.keys(characterData.attributes).forEach(attr => {
+                    document.getElementById(`${attr}-select`).classList.toggle('hidden', hidden);
+                    document.getElementById(`${attr}-display`).classList.toggle('hidden', !hidden);
+                });
+                ['hp', 'mp', 'ip'].forEach(stat => document.getElementById(`${stat}-inputs`).classList.toggle('hidden', hidden));
+                updateUI(); 
+                menuHistory = [];
+                renderCurrentMenu();
+            });
+
+            document.getElementById('character-name-input').addEventListener('input', e => { characterData.name = e.target.value; updateUI(); saveCharacterData(); });
+            
+            document.getElementById('upload-portrait-btn').addEventListener('click', () => { document.getElementById('image-upload-file').click(); playMenuConfirmSound(); });
+            document.getElementById('image-upload-file').addEventListener('change', e => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = event => { characterData.portrait = event.target.result; updateUI(); saveCharacterData(true); };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            document.getElementById('export-data-btn').addEventListener('click', () => { exportData(); playMenuConfirmSound(); });
+            document.getElementById('import-data-btn').addEventListener('click', () => { document.getElementById('import-data-file').click(); playMenuConfirmSound(); });
+            document.getElementById('import-data-file').addEventListener('change', importData);
+
+            ['current-hp-input', 'max-hp-input', 'current-mp-input', 'max-mp-input', 'current-ip-input', 'max-ip-input'].forEach(id => {
+                const [prop, stat] = id.split('-');
+                document.getElementById(id).addEventListener('input', e => { characterData.stats[stat][prop] = parseInt(e.target.value, 10) || 0; updateUI(); saveCharacterData(); });
+            });
+            ['add-hp-btn','sub-hp-btn','add-mp-btn','sub-mp-btn','add-ip-btn','sub-ip-btn'].forEach(id => {
+                const [op, stat] = id.split('-');
+                document.getElementById(id).addEventListener('click', () => handleStatAdjust(stat.replace('btn',''), op === 'add' ? 'add' : 'sub'));
+            });
+            Object.keys(characterData.attributes).forEach(attr => {
+                document.getElementById(`${attr}-select`).addEventListener('change', e => { characterData.attributes[attr] = e.target.value; saveCharacterData(true); updateAttributesAndStatusUI(); });
+            });
+
+            document.getElementById('volume-slider').addEventListener('input', e => {
+                const volume = parseFloat(e.target.value);
+                characterData.settings.volume = volume;
+                if (volumeNode) volumeNode.volume.value = Tone.gainToDb(volume);
+                saveCharacterData();
+            });
+            document.getElementById('mute-btn').addEventListener('click', () => {
+                characterData.settings.muted = !characterData.settings.muted;
+                if (volumeNode) volumeNode.mute = characterData.settings.muted;
+                updateVolumeUI();
+                saveCharacterData(true);
+            });
+        }
+        
+        init();
+    </script>
+</body>
+</html>
+
